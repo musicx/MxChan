@@ -16,9 +16,7 @@ bool higher(Candle x, Candle y) {
     if (x.high >= y.high && x.low >= y.low) {
         return true;
     }
-    else {
-        return false;
-    }
+    return false;
 }
 
 
