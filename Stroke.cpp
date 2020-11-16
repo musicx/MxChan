@@ -11,11 +11,11 @@ bool lower(Candle x, Candle y) {
 }
 
 
-void Stroke::scan(vector<Candle>& candles) {
+void Stroke::scanForStrokes(vector<Candle>& candles) {
     for (int i = 0; i < candles.size() - 1; i++) {
         bool insert = false;
-        if (i == 0 || (lower(candles[i], candles[i - 1]) && lower(candles[i], candles[i + 1])) || 
-            (lower(candles[i - 1], candles[i]) && lower(candles[i + 1], candles[i]))) {
+        if (i == 0 || lower(candles[i], candles[i - 1]) && lower(candles[i], candles[i + 1]) || 
+            lower(candles[i - 1], candles[i]) && lower(candles[i + 1], candles[i])) {
             Point point;
             point.index = i;
             point.position = candles[i].topPosition;
@@ -44,9 +44,9 @@ void Stroke::scan(vector<Candle>& candles) {
             else if (lastPoint.position - secondPoint.position > 3 && lastPoint.index - secondPoint.index > 2) {
                 this->points.push_back(lastPoint);
             }
-        	else if (lastPoint.position - secondPoint.position <= 3 && this->points.size() > 1) {
-	            if (lastPoint.bullish > 0 && candles[lastPoint.index].high > candles[this->points[this->points.size() - 2].index].high || 
-                    lastPoint.bullish < 0 && candles[lastPoint.index].low < candles[this->points[this->points.size() - 2].index].low) {
+        	else if (lastPoint.index - secondPoint.index <= 3 && this->points.size() > 2) {
+            	if (lastPoint.bullish > 0 && candles[lastPoint.index].high > candles[this->points[this->points.size() - 2].index].high && candles[secondPoint.index].low > candles[this->points[this->points.size() - 3].index].low ||
+                    lastPoint.bullish < 0 && candles[lastPoint.index].low < candles[this->points[this->points.size() - 2].index].low && candles[secondPoint.index].high < candles[this->points[this->points.size() - 3].index].high) {
                     this->points.pop_back();
                     this->points.pop_back();
                     this->points.push_back(lastPoint);
@@ -54,6 +54,37 @@ void Stroke::scan(vector<Candle>& candles) {
             }
         }
     }
+}
+
+void Stroke::scanForFractals(vector<Candle>& candles)
+{
+	for (int i = 1; i < candles.size() - 1; i++)
+	{
+        if (lower(candles[i], candles[i - 1]) && lower(candles[i], candles[i + 1]) ||
+            lower(candles[i - 1], candles[i]) && lower(candles[i + 1], candles[i])) {
+            Point point;
+            point.index = i;
+            point.position = candles[i].topPosition;
+            bool bullish = lower(candles[i + 1], candles[i]);
+            if (i > 0)
+            {
+                bullish = bullish && lower(candles[i - 1], candles[i]);
+            }
+            point.bullish = bullish ? 1 : -1;
+        	if (i < candles.size() - 2)
+        	{
+        		if(bullish && candles[i + 2].close < candles[i + 1].low)
+        		{
+                    point.bullish++;
+        		}
+                else if (!bullish && candles[i + 2].close > candles[i + 1].high)
+                {
+                    point.bullish--;
+                }
+        	} 
+            this->points.push_back(point);
+        }
+	}
 }
 
 void findTrends(int nCount, float* pOut, float* pIn, float* pHigh, float* pLow) {

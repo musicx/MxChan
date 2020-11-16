@@ -19,7 +19,8 @@ class Stroke
 {
 public:
     vector<Point> points;      // ±ÊÆðÖ¹µã
-    void scan(vector<Candle>& candles);
+    void scanForStrokes(vector<Candle>& candles);
+    void scanForFractals(vector<Candle>& candles);
 };
 
 

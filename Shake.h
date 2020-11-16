@@ -14,6 +14,7 @@ struct Shake {
     float high;
     float low;
     float central;
+    int counts;
  //   int highEdgeCount;
  //   int lowEdgeCount;
  //   int highHalfCount;
@@ -35,7 +36,9 @@ public:
     vector<Trend> trends;      // 波段包含多个趋势
     vector<Shake> shakes;      // 趋势中包含震荡
     void createTrends(vector<Candle>& candles, float* pEnds, int nCount);
-    //void scanForShakes();
+    void scanForSimpleShakes();
+    void scanForLongShakes();
+    void scanForShrinkShakes();
     void scanForShakeChannels();
 };
 

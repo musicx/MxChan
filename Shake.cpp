@@ -30,104 +30,183 @@ void Wave::createTrends(vector<Candle>& candles, float* pEnds, int nCount)
 	this->candles = candles;
 }
 
-/*
-void Wave::scanForShakes()
+void Wave::scanForSimpleShakes()
 {
-	float maxOuterTolerance = 1.236;
-	float maxInnerTolerance = 0.09;  // 0.09+0.146=0.236
-	if (this->trends.size() < 4) {
-		return;
-	}
-	for (unsigned int i = 0; i < this->trends.size() - 3; i++) {
-		bool found = false;
-		int highEdgeCount = 0;
-		int lowEdgeCount = 0;
-		int highHalfCount = 0;
-		int lowHalfCount = 0;
-		int trendCount = 0;
-		Trend currentTrend = this->trends[i];
-		Trend markTrend = this->trends[i + 1];
-		Trend nextTrend = this->trends[i + 2];
+	float tolerance = 0.5;
+	int index = 1;
+	while (index < this->trends.size() - 2)
+	{
+		Trend pastTrend = this->trends[index - 1];
+		Trend currentTrend = this->trends[index];
+		Trend nextTrend = this->trends[index + 2];
+		if (pastTrend.high- pastTrend.low < currentTrend.high - currentTrend.low)
+		{
+			// 前笔更短，起始点可能是买卖点，放弃
+			index++;
+			continue;
+		}
+		float shakeHigh = min(currentTrend.high, nextTrend.high);
+		float shakeLow = max(currentTrend.low, nextTrend.low);
+		float shakeSpan = shakeHigh - shakeLow;
+		if (shakeLow >= shakeHigh)
+		{
+			// 无重叠，过滤
+			index++;
+			continue;
+		}
+		Shake shake;
+		shake.high = shakeHigh;
+		shake.low = shakeLow;
+		shake.start = currentTrend.start + 1;
+		shake.end = nextTrend.end - 1;
 
-		if (currentTrend.direction > 0 && (nextTrend.high - markTrend.low) / (currentTrend.high - markTrend.low) < maxOuterTolerance ||
-			currentTrend.direction < 0 && (markTrend.high - nextTrend.low) / (markTrend.high - currentTrend.low) < maxOuterTolerance) {
-			float freezeHigh = 0;
-			float freezeLow = 0;
-			if (currentTrend.direction > 0) {
-				freezeHigh = currentTrend.high;
-				freezeLow = markTrend.low;
+		int checkIndex = index + 3;
+		while (checkIndex < this->trends.size())
+		{
+			Trend checkTrend = this->trends[checkIndex];
+			float checkSpan = checkTrend.high - checkTrend.low;
+			float overlap = min(shakeHigh - checkTrend.low, checkTrend.high - shakeLow);
+			if (overlap <= 0 || overlap < shakeSpan * tolerance || overlap < checkSpan * tolerance)
+			{
+				// 笔较中枢过大或过小，不加入当前中枢
+				break;
 			}
-			else {
-				freezeHigh = markTrend.high;
-				freezeLow = currentTrend.low;
+			shake.end = checkTrend.end - 1;
+			checkIndex++;
+		}
+
+		this->shakes.push_back(shake);
+		index = checkIndex;
+	}
+}
+
+
+void Wave::scanForLongShakes()
+{
+	int index = 1;
+	while (index < this->trends.size() - 2)
+	{
+		Trend pastTrend = this->trends[index - 1];
+		Trend currentTrend = this->trends[index];
+		Trend nextTrend = this->trends[index + 2];
+		if (pastTrend.high - pastTrend.low < currentTrend.high - currentTrend.low)
+		{
+			// 前笔更短，起始点可能是买卖点，放弃
+			index++;
+			continue;
+		}
+		float shakeHigh = min(currentTrend.high, nextTrend.high);
+		float shakeLow = max(currentTrend.low, nextTrend.low);
+		if (shakeLow >= shakeHigh)
+		{
+			// 无重叠，过滤
+			index++;
+			continue;
+		}
+		Shake shake;
+		shake.high = shakeHigh;
+		shake.low = shakeLow;
+		shake.start = currentTrend.start + 1;
+		shake.end = nextTrend.end - 1;
+		shake.counts = 3;
+
+		int checkIndex = index + 3;
+		while (checkIndex < this->trends.size())
+		{
+			Trend checkTrend = this->trends[checkIndex];
+			if (checkTrend.low > shakeHigh || checkTrend.high < shakeLow)
+			{
+				// 出现三买三卖，中枢结束
+				break;
 			}
-			trendCount++;
-			if (nextTrend.direction > 0 && abs(nextTrend.high - freezeHigh) / (freezeHigh - freezeLow) < maxInnerTolerance) {
-				highEdgeCount++;
-			}
-			if (nextTrend.direction < 0 && abs(freezeLow - nextTrend.low) / (freezeHigh - freezeLow) < maxInnerTolerance) {
-				lowEdgeCount++;
-			}
-			if (nextTrend.low > (freezeHigh + freezeLow) / 2) {
-				highHalfCount++;
-			}
-			if (nextTrend.high < (freezeHigh + freezeLow) / 2) {
-				lowHalfCount++;
-			}
-			unsigned int idx = i + 3;
-			while (idx < this->trends.size()) {
-				if (this->trends[idx].direction > 0 && (this->trends[idx].high - freezeLow) / (freezeHigh - freezeLow) < maxOuterTolerance ||
-					this->trends[idx].direction < 0 && (freezeHigh - this->trends[idx].low) / (freezeHigh - freezeLow) < maxOuterTolerance) {
-					found = true;
-					trendCount++;
-					if (this->trends[idx].direction > 0 && abs(this->trends[idx].high - freezeHigh) / (freezeHigh - freezeLow) < maxInnerTolerance) {
-						highEdgeCount++;
-					}
-					if (this->trends[idx].direction < 0 && abs(freezeLow - this->trends[idx].low) / (freezeHigh - freezeLow) < maxInnerTolerance) {
-						lowEdgeCount++;
-					}
-					if (this->trends[idx].low > (freezeHigh + freezeLow) / 2) {
-						highHalfCount++;
-					}
-					if (this->trends[idx].high < (freezeHigh + freezeLow) / 2) {
-						lowHalfCount++;
-					}
-					idx++;
-				}
-				else {
-					break;
-				}
-			}
-			if (found && highEdgeCount > 0 && lowEdgeCount > 0 && (highHalfCount + lowHalfCount) * 1.0 / trendCount < 0.3) {
-				Shake shake;
-				shake.high = freezeHigh;
-				shake.low = freezeLow;
-				shake.start = currentTrend.start;
-				shake.end = this->trends[idx - 1].end;
-				shake.highEdgeCount = highEdgeCount;
-				shake.lowEdgeCount = lowEdgeCount;
-				shake.highHalfCount = highHalfCount;
-				shake.lowHalfCount = lowHalfCount;
-				shake.trendCount = trendCount;
-				for (int pos = currentTrend.end; pos >= currentTrend.start; pos--) {
-					if (currentTrend.direction > 0 && this->candles[pos].close < freezeLow || 
-						currentTrend.direction < 0 && this->candles[pos].close > freezeHigh) {
-						shake.start = pos + 1;
-					}
-				}
-				for (int pos = this->trends[idx - 1].start; pos <= this->trends[idx - 1].end; pos++) {
-					if (this->candles[pos].close > freezeHigh || this->candles[pos].close < freezeLow) {
-						shake.end = pos;
-					}
-				}
-				this->shakes.push_back(shake);
-			}
+			shake.end = checkTrend.end - 1;
+			shake.counts++;
+			checkIndex++;
+		}
+
+		this->shakes.push_back(shake);
+		index = checkIndex;
+	}
+	for (int i = this->shakes.size() - 1; i >= 0; i--)
+	{
+		if (this->shakes[i].counts < 3)
+		{
+			this->shakes.erase(this->shakes.begin() + i);
 		}
 	}
 }
-*/
 
-// TODO: 000928   000948  overlap problem
+
+
+void Wave::scanForShrinkShakes()
+{
+	int index = 1;
+	while (index < this->trends.size() - 2)
+	{
+		Trend pastTrend = this->trends[index - 1];
+		Trend currentTrend = this->trends[index];
+		Trend nextTrend = this->trends[index + 2];
+		if (pastTrend.high - pastTrend.low < currentTrend.high - currentTrend.low)
+		{
+			// 前笔更短，起始点可能是买卖点，放弃
+			index++;
+			continue;
+		}
+		float shakeHigh = min(currentTrend.high, nextTrend.high);
+		float shakeLow = max(currentTrend.low, nextTrend.low);
+		if (shakeLow >= shakeHigh)
+		{
+			// 无重叠，过滤
+			index++;
+			continue;
+		}
+		Shake shake;
+		shake.high = shakeHigh;
+		shake.low = shakeLow;
+		shake.start = currentTrend.start + 1;
+		shake.end = nextTrend.end - 1;
+		shake.counts = 3;
+
+		int checkIndex = index + 3;
+		while (checkIndex < this->trends.size())
+		{
+			Trend checkTrend = this->trends[checkIndex];
+			if (checkTrend.low > shake.high || checkTrend.high < shake.low)
+			{
+				// 出现三买三卖，中枢结束
+				break;
+			}
+			if ((shakeLow <= 4 && shakeHigh < shakeLow + 0.005) || (shakeLow > 4 && shakeLow <= 10 && shakeHigh < shakeLow + 0.02) || (shakeLow > 10 && shakeHigh < shakeLow * 1.0025))
+			{
+				break;
+			}
+			shakeHigh = (checkTrend.high < shake.high) ? checkTrend.high : shake.high;
+			shakeLow = (checkTrend.low > shake.low) ? checkTrend.low : shake.low;
+			if (shakeHigh > shakeLow * 1.01)
+			{
+				shake.high = shakeHigh;
+				shake.low = shakeLow;
+			} 
+			shake.end = checkTrend.end - 1;
+			shake.counts++;
+			checkIndex++;
+		}
+
+		this->shakes.push_back(shake);
+		index = checkIndex;
+	}
+	for (int i = this->shakes.size() - 1; i >= 0; i--)
+	{
+		if (this->shakes[i].counts < 3)
+		{
+			this->shakes.erase(this->shakes.begin() + i);
+		}
+	}
+}
+
+
+
+
 void Wave::scanForShakeChannels()
 {
 	const float maxTolerance = 0.618;
@@ -136,7 +215,7 @@ void Wave::scanForShakeChannels()
 		return;
 	}
 	unsigned int base = 0;
-	while (base < this->trends.size()) {
+	while (base < this->trends.size() - 2) {
 		Trend currentTrend = this->trends[base];
 		const Trend markTrend = this->trends[base + 1];
 		Trend nextTrend = this->trends[base + 2];
