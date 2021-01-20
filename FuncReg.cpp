@@ -1136,6 +1136,312 @@ void Func26(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
 }
 
 
+//=============================================================================
+// 输出函数27号: 当前笔状态
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func27(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+
+        Stroke stroke;
+        stroke.scanForStrokes(chart.chanCandles);
+
+        int index = 0;
+        int direction = stroke.points[0].bullish;
+        int nextPos = stroke.points[0].position;
+        float finalClose = 0;
+        for (int i = 0; i < dataLen; i++) {
+            if (i < nextPos)
+            {
+                pOut[i] = direction;
+            }
+        	else if (i == nextPos)
+        	{
+                pOut[i] = direction;
+                index += 1;
+        		if (index < stroke.points.size())
+        		{
+                    direction = stroke.points[index].bullish;
+                    nextPos = stroke.points[index].position;
+        		}
+                else if (finalClose == 0)
+                {
+                    finalClose = chart.rawCandles[nextPos].close;
+                }
+        	}
+            else if (i > nextPos)
+            {
+	            if (chart.rawCandles[i].close > finalClose)
+	            {
+                    pOut[i] = 1;
+	            }
+            	else
+	            {
+                    pOut[i] = -1;
+	            }
+            }
+        }
+
+    }
+}
+
+
+//=============================================================================
+// 输出函数28号: 当前线段状态
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func28(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+
+        Stroke stroke;
+        stroke.scanForStrokes(chart.chanCandles);
+
+        Stroke trend;
+        trend.scanForTrends(chart.rawCandles, stroke.points);
+    	    	
+        int index = 0;
+        int direction = trend.points[0].bullish;
+        int nextPos = trend.points[0].position;
+        for (int i = 0; i < dataLen; i++) {
+            if (i < nextPos)
+            {
+                pOut[i] = direction;
+            }
+            else if (i == nextPos)
+            {
+                pOut[i] = direction;
+                index += 1;
+                if (index < trend.points.size())
+                {
+                    direction = trend.points[index].bullish;
+                    nextPos = trend.points[index].position;
+                }
+            }
+            else if (i > nextPos)
+            {
+                pOut[i] = direction;
+            }
+        }
+
+    }
+}
+
+//=============================================================================
+// 输出函数29号: 当前中枢状态 -- 带收缩
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func29(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+
+        Stroke stroke;
+        stroke.scanForStrokes(chart.chanCandles);
+
+        vector<float> points(dataLen, 0);
+        for (auto point : stroke.points)
+        {
+            points[point.position] = point.bullish;
+        }
+
+        Wave wave;
+        wave.createTrends(chart.rawCandles, &points[0], dataLen);
+        wave.scanForShrinkShakes();
+
+        int shakeIndex = 0;
+        vector<int> outputs(dataLen, 0);
+    	
+        for (int i = 0; i < dataLen; i++)
+        {
+            if (shakeIndex < wave.shakes.size() - 1 && wave.shakes[shakeIndex].end < i)
+            {
+                shakeIndex++;
+            }
+            if (chart.rawCandles[i].close < wave.shakes[shakeIndex].low)
+            {
+                outputs[i] = -1;
+            }
+            else if (chart.rawCandles[i].close > wave.shakes[shakeIndex].high)
+            {
+                outputs[i] = 1;
+            }
+            else
+            {
+                outputs[i] = 0;
+            }
+        }
+
+        for (int i = 0; i < dataLen; i++)
+        {
+            pOut[i] = outputs[i];
+        }
+
+    }
+}
+
+
+//=============================================================================
+// 输出函数30号: 关键价位
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func30(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+
+        vector<float> pivotLines = findPivotLines(chart.rawCandles);
+        int numLines = pivotLines.size();
+        float lastClose = chart.rawCandles[dataLen - 1].close;
+
+        int nearest = 0;
+        float minimum = 0.;
+    	for (int i = 0; i < numLines; i++)
+    	{
+            float diff = abs(pivotLines[i] - lastClose);
+    		if (diff < minimum)
+    		{
+                minimum = diff;
+                nearest = i;
+    		}
+    	}
+
+        vector<int> indexes(numLines, 0);
+  
+    	if (nearest == 0)
+    	{
+    		for (int i = 0; i < numLines; i++)
+    		{
+                indexes.push_back(i);
+    		}
+    	}
+        else if (nearest == numLines - 1)
+        {
+	        for (int i = numLines - 1; i >= 0; i--)
+	        {
+                indexes.push_back(i);
+	        }
+        }
+        else
+        {
+            bool direction = lastClose > pivotLines[nearest];
+            indexes.push_back(nearest);
+            int upper = nearest + 1;
+            int lower = nearest - 1;
+        	while (upper < numLines || lower >= 0)
+        	{
+        		if (direction)
+        		{
+        			if (upper < numLines)
+        			{
+                        indexes.push_back(upper);
+        			}
+        			if (lower >= 0)
+        			{
+                        indexes.push_back(lower);
+        			}
+        		}
+                else
+                {
+                    if (lower >= 0)
+                    {
+                        indexes.push_back(lower);
+                    }
+                    if (upper < numLines)
+                    {
+                        indexes.push_back(upper);
+                    }
+                }
+                upper++;
+                lower--;
+        	}
+        }
+
+        for (int i = 0; i < indexes.size(); i++)
+        {
+            int fbound = dataLen - i * (30 + 1);
+            int pbound = dataLen - (i + 1) * 30;
+        	if (fbound > 0)
+        	{
+        		for (int j = max(0, pbound); j < fbound; j++)
+        		{
+                    pOut[j] = pivotLines[i];
+        		}
+        	}
+        }
+
+    }
+}
+
+
+
 //加载的函数
 PluginTCalcFuncInfo g_CalcFuncSets[] =
 {
@@ -1165,6 +1471,10 @@ PluginTCalcFuncInfo g_CalcFuncSets[] =
     {24,(pPluginFUNC)&Func24},
     {25,(pPluginFUNC)&Func25},
     {26,(pPluginFUNC)&Func26},
+	{27,(pPluginFUNC)&Func27},
+    {28,(pPluginFUNC)&Func28},
+    {29,(pPluginFUNC)&Func29},
+    {30,(pPluginFUNC)&Func30},
 	{0,NULL},
 };
 

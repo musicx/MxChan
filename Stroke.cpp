@@ -87,6 +87,128 @@ void Stroke::scanForFractals(vector<Candle>& candles)
 	}
 }
 
+
+void Stroke::scanForTrends(vector<Candle>& candles, vector<Point>& points)
+{
+    vector<int> potentialPoints(points.size(), 0);
+	
+    int direction = points[0].bullish;
+    int highFreeze = 0;
+    int lowFreeze = 0;
+
+	for (int i = 2; i < points.size(); i++)
+	{
+		if (direction == 1)
+		{
+			if (points[i].bullish > 0)
+			{
+				if (highFreeze != 0)
+				{
+					if (candles[points[i].position].high >= candles[points[highFreeze].position].high)
+					{
+                        potentialPoints[highFreeze] = 0;
+                        potentialPoints[i] = 1;
+                        highFreeze = 0;
+                        lowFreeze = 0;
+					}
+				}
+                else if (candles[points[i - 2].position].high < candles[points[i].position].high)
+                {
+                    potentialPoints[i - 2] = 0;
+                    potentialPoints[i] = 1;
+                }
+                else if (candles[points[i - 2].position].high >= candles[points[i].position].high)
+                {
+                    highFreeze = i - 2;
+                    lowFreeze = i - 1;
+                }
+			}
+            else
+            {
+	            if (lowFreeze != 0)
+	            {
+		            if (candles[points[i].position].low <= candles[points[lowFreeze].position].low)
+		            {
+                        direction = -1;
+                        potentialPoints[highFreeze] = 1;
+                        potentialPoints[i] = -1;
+                        highFreeze = 0;
+                        lowFreeze = 0;
+		            }
+	            }
+                else if (candles[points[i - 2].position].low > candles[points[i].position].low)
+                {
+                    direction = -1;
+                    potentialPoints[i] = -1;
+                    highFreeze = 0;
+                    lowFreeze = 0;
+                }
+            }
+		}
+		else
+		{
+			if (points[i].bullish < 0)
+			{
+				if (lowFreeze != 0)
+				{
+					if (candles[points[i].position].low <= candles[points[lowFreeze].position].low)
+					{
+                        potentialPoints[lowFreeze] = 0;
+                        potentialPoints[i] = -1;
+                        highFreeze = 0;
+                        lowFreeze = 0;
+					}
+				}
+                else if (candles[points[i - 2].position].low > candles[points[i].position].low)
+                {
+                    potentialPoints[i - 2] = 0;
+                    potentialPoints[i] = -1;
+                }
+                else if (candles[points[i - 2].position].low <= candles[points[i].position].low)
+                {
+                    lowFreeze = i - 2;
+                    highFreeze = i - 1;
+                }
+			}
+            else
+            {
+	            if (highFreeze != 0)
+	            {
+		            if (candles[points[i].position].high >= candles[points[highFreeze].position].high)
+		            {
+                        direction = 1;
+                        potentialPoints[lowFreeze] = -1;
+                        potentialPoints[i] = 1;
+                        highFreeze = 0;
+                        lowFreeze = 0;
+		            }
+	            }
+                else if (candles[points[i - 2].position].high < candles[points[i].position].high)
+                {
+                    direction = 1;
+                    potentialPoints[i] = 1;
+                    highFreeze = 0;
+                    lowFreeze = 0;
+                }
+            }
+		}
+	}
+
+	for (int pos = 0; pos < potentialPoints.size(); pos++)
+	{
+		if (potentialPoints[pos] == 0)
+		{
+            continue;
+		}
+        Point trendPoint;
+        trendPoint.bullish = potentialPoints[pos];
+        trendPoint.index = pos;
+        trendPoint.position = points[pos].position;
+        this->points.push_back(trendPoint);
+	}
+}
+
+
 void findTrends(int nCount, float* pOut, float* pIn, float* pHigh, float* pLow) {
     int direction = 0;
     int prevHigh = 0;

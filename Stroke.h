@@ -2,6 +2,7 @@
 #define __STROKE_H__
 
 #include <vector>
+#include <set>
 #include "Chart.h"
 
 using namespace std;
@@ -21,6 +22,7 @@ public:
     vector<Point> points;      // ±ÊÆðÖ¹µã
     void scanForStrokes(vector<Candle>& candles);
     void scanForFractals(vector<Candle>& candles);
+    void scanForTrends(vector<Candle>& candles, vector<Point>& points);
 };
 
 

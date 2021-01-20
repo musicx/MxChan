@@ -1,6 +1,9 @@
 ﻿#include "pch.h"
 #include "Indicator.h"
 
+#include <map>
+#include "Stroke.h"
+
 bool xlower(Candle x, Candle y) {
 	if (x.high <= y.high && x.low <= y.low && x.high + x.low < y.high + y.low) {
 		return true;
@@ -502,3 +505,90 @@ vector<int> findSingleLineDivergence(float* pPrice, float* pInd, int dataLen)
 
 	return outputs;
 }
+
+
+vector<float> findPivotLines(vector<Candle>& candles)
+{
+	Stroke stroke;
+	stroke.scanForFractals(candles);
+	int startPosition = max(0, candles.size() - 500);
+	map<int, int> ranges;
+	for(auto point: stroke.points)
+	{
+		if(point.position < startPosition)
+		{
+			continue;
+		}
+		float high = candles[point.position].high;
+		float low = candles[point.position].low;
+		if(point.bullish)
+		{
+			if(point.position > 0)
+			{
+				low = min(max(candles[point.position - 1].open, candles[point.position - 1].close), max(candles[point.position].open, candles[point.position].close));
+			}
+			if(point.position < candles.size() - 1)
+			{
+				float low2 = min(max(candles[point.position + 1].open, candles[point.position + 1].close), max(candles[point.position].open, candles[point.position].close));
+				low = max(low2, low);
+			}
+		}
+		else
+		{
+			if (point.position > 0)
+			{
+				high = max(min(candles[point.position - 1].open, candles[point.position - 1].close), min(candles[point.position].open, candles[point.position].close));
+			}
+			if (point.position < candles.size() - 1)
+			{
+				float high2 = max(min(candles[point.position + 1].open, candles[point.position + 1].close), min(candles[point.position].open, candles[point.position].close));
+				high = min(high2, high);
+			}
+		}
+		if(low < high)
+		{
+			for(int x = int(low * 100); x <= int(high * 100); x++)
+			{
+				if(ranges.find(x) != ranges.end())
+				{
+					ranges[x] += 1;
+				}
+				else
+				{
+					ranges[x] = 1;
+				}
+			}
+		}
+	}
+	
+	bool countTrend = false;
+	int priceSum = 0;
+	int priceCount = 0;
+	int currentCount = 0;
+	vector<float> highFreq;
+	for (auto& item : ranges)
+	{
+		if (item.second != currentCount)
+		{
+			if (currentCount != 0 && item.second < currentCount && countTrend)
+			{
+				int average = priceSum / priceCount;
+				highFreq.push_back(average / 100.);
+				countTrend = false;
+			}
+			if (item.second > currentCount)
+			{
+				countTrend = true;
+			}
+			currentCount = item.second;
+			priceSum = 0;
+			priceCount = 0;
+		}
+		priceSum += item.first;
+		priceCount++;
+	}
+
+	return highFreq;
+}
+
+
