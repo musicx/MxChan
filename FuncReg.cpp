@@ -1357,86 +1357,85 @@ void Func30(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
         }
         chart.mergeCandles();
 
-        vector<float> pivotLines = findPivotLines(chart.rawCandles);
+        vector<float> pivotLines = findPivotLines(chart);
         int numLines = pivotLines.size();
         float lastClose = chart.rawCandles[dataLen - 1].close;
-
-        int nearest = 0;
-        float minimum = 0.;
-    	for (int i = 0; i < numLines; i++)
-    	{
-            float diff = abs(pivotLines[i] - lastClose);
-    		if (diff < minimum)
-    		{
-                minimum = diff;
-                nearest = i;
-    		}
-    	}
-
-        vector<int> indexes(numLines, 0);
-  
-    	if (nearest == 0)
-    	{
-    		for (int i = 0; i < numLines; i++)
-    		{
-                indexes.push_back(i);
-    		}
-    	}
-        else if (nearest == numLines - 1)
-        {
-	        for (int i = numLines - 1; i >= 0; i--)
-	        {
-                indexes.push_back(i);
-	        }
-        }
-        else
-        {
-            bool direction = lastClose > pivotLines[nearest];
-            indexes.push_back(nearest);
-            int upper = nearest + 1;
-            int lower = nearest - 1;
-        	while (upper < numLines || lower >= 0)
-        	{
-        		if (direction)
-        		{
-        			if (upper < numLines)
-        			{
-                        indexes.push_back(upper);
-        			}
-        			if (lower >= 0)
-        			{
-                        indexes.push_back(lower);
-        			}
-        		}
-                else
+        if (numLines > 0) {
+            int nearest = 0;
+            float minimum = abs(pivotLines[0] - lastClose);
+            for (int i = 1; i < numLines; i++)
+            {
+                float diff = abs(pivotLines[i] - lastClose);
+                if (diff < minimum)
                 {
-                    if (lower >= 0)
+                    minimum = diff;
+                    nearest = i;
+                }
+            }
+
+            vector<int> indexes;
+            if (nearest == 0)
+            {
+                for (int i = 0; i < numLines; i++)
+                {
+                    indexes.push_back(i);
+                }
+            }
+            else if (nearest == numLines - 1)
+            {
+                for (int i = numLines - 1; i >= 0; i--)
+                {
+                    indexes.push_back(i);
+                }
+            }
+            else
+            {
+                bool direction = lastClose > pivotLines[nearest];
+                indexes.push_back(nearest);
+                int upper = nearest + 1;
+                int lower = nearest - 1;
+                while (upper < numLines || lower >= 0)
+                {
+                    if (direction)
                     {
-                        indexes.push_back(lower);
+                        if (upper < numLines)
+                        {
+                            indexes.push_back(upper);
+                        }
+                        if (lower >= 0)
+                        {
+                            indexes.push_back(lower);
+                        }
                     }
-                    if (upper < numLines)
+                    else
                     {
-                        indexes.push_back(upper);
+                        if (lower >= 0)
+                        {
+                            indexes.push_back(lower);
+                        }
+                        if (upper < numLines)
+                        {
+                            indexes.push_back(upper);
+                        }
+                    }
+                    upper++;
+                    lower--;
+                }
+            }
+
+            for (int i = 0; i < indexes.size(); i++)
+            {
+                int fbound = dataLen - i * (30 + 1);
+                int pbound = dataLen - (i + 1) * (30 + 1) + 1;
+                if (fbound > 0)
+                {
+                    for (int j = max(0, pbound); j < fbound; j++)
+                    {
+                        pOut[j] = pivotLines[indexes[i]];
                     }
                 }
-                upper++;
-                lower--;
-        	}
+            }
         }
-
-        for (int i = 0; i < indexes.size(); i++)
-        {
-            int fbound = dataLen - i * (30 + 1);
-            int pbound = dataLen - (i + 1) * 30;
-        	if (fbound > 0)
-        	{
-        		for (int j = max(0, pbound); j < fbound; j++)
-        		{
-                    pOut[j] = pivotLines[i];
-        		}
-        	}
-        }
-
     }
 }
 

@@ -25,7 +25,7 @@ vector<int> findCrossDivergence(float* pPrice, float* pFast, float* pSlow, int d
 
 vector<int> findSingleLineDivergence(float* pPrice, float* pInd, int dataLen);
 
-vector<float> findPivotLines(vector<Candle>& candles);
+vector<float> findPivotLines(Chart chart);
 
 #pragma pack(pop)
 

@@ -506,50 +506,37 @@ vector<int> findSingleLineDivergence(float* pPrice, float* pInd, int dataLen)
 	return outputs;
 }
 
-
-vector<float> findPivotLines(vector<Candle>& candles)
+vector<float> findPivotLines(Chart chart)
 {
 	Stroke stroke;
-	stroke.scanForFractals(candles);
-	int startPosition = max(0, candles.size() - 500);
+	stroke.scanForStrokes(chart.chanCandles);
+	int startPosition = max(0, chart.rawCandles.size() - 500);
 	map<int, int> ranges;
-	for(auto point: stroke.points)
+	for (auto point : stroke.points)
 	{
-		if(point.position < startPosition)
+		if (point.position < startPosition)
 		{
 			continue;
 		}
-		float high = candles[point.position].high;
-		float low = candles[point.position].low;
-		if(point.bullish)
+		float high = chart.chanCandles[point.index].high;
+		float low = chart.chanCandles[point.index].low;
+		int lastIndex = max(0, point.index - 1);
+		int nextIndex = min(chart.chanCandles.size() - 1, point.index + 1);
+		if (point.bullish > 0)
 		{
-			if(point.position > 0)
-			{
-				low = min(max(candles[point.position - 1].open, candles[point.position - 1].close), max(candles[point.position].open, candles[point.position].close));
-			}
-			if(point.position < candles.size() - 1)
-			{
-				float low2 = min(max(candles[point.position + 1].open, candles[point.position + 1].close), max(candles[point.position].open, candles[point.position].close));
-				low = max(low2, low);
-			}
+			low = max(max(chart.chanCandles[lastIndex].open, chart.chanCandles[lastIndex].close),
+				max(chart.chanCandles[nextIndex].open, chart.chanCandles[nextIndex].close));
 		}
 		else
 		{
-			if (point.position > 0)
-			{
-				high = max(min(candles[point.position - 1].open, candles[point.position - 1].close), min(candles[point.position].open, candles[point.position].close));
-			}
-			if (point.position < candles.size() - 1)
-			{
-				float high2 = max(min(candles[point.position + 1].open, candles[point.position + 1].close), min(candles[point.position].open, candles[point.position].close));
-				high = min(high2, high);
-			}
+			high = min(min(chart.chanCandles[lastIndex].open, chart.chanCandles[lastIndex].close),
+				min(chart.chanCandles[nextIndex].open, chart.chanCandles[nextIndex].close));
 		}
-		if(low < high)
+		if (low < high)
 		{
-			for(int x = int(low * 100); x <= int(high * 100); x++)
+			for (int x = int(low * 100); x <= int(high * 100); x++)
 			{
-				if(ranges.find(x) != ranges.end())
+				if (ranges.find(x) != ranges.end())
 				{
 					ranges[x] += 1;
 				}
@@ -560,7 +547,7 @@ vector<float> findPivotLines(vector<Candle>& candles)
 			}
 		}
 	}
-	
+
 	bool countTrend = false;
 	int priceSum = 0;
 	int priceCount = 0;
@@ -590,5 +577,6 @@ vector<float> findPivotLines(vector<Candle>& candles)
 
 	return highFreq;
 }
+
 
 
