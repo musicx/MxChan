@@ -1262,6 +1262,7 @@ void Func28(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
     }
 }
 
+
 //=============================================================================
 // 输出函数29号: 当前中枢状态 -- 带收缩
 //OOR:= ROUND((1 - O / H) * 10000) * 10000;
@@ -1440,6 +1441,125 @@ void Func30(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
 }
 
 
+//=============================================================================
+// 输出函数31号: 关键阻力
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func31(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+
+        Stroke stroke;
+        stroke.scanForStrokes(chart.chanCandles);
+
+        vector<float> outputs(dataLen, 0);
+        for (auto point : stroke.points)
+        {
+            if (point.bullish > 0) {
+                for (int pos = point.position + 1; pos < min(dataLen, point.position + 180); pos++)
+                {
+                    if (chart.rawCandles[pos].high < chart.rawCandles[point.position].high
+                        && chart.rawCandles[pos].high > chart.rawCandles[point.position].high * 0.95)
+                    {
+                        outputs[pos] += 1;
+                    }
+                }
+            }
+            else if (point.bullish < 0) {
+                for (int pos = point.position + 1; pos < min(dataLen, point.position + 180); pos++)
+                {
+                    if (chart.rawCandles[pos].high < chart.rawCandles[point.position].low
+                        && chart.rawCandles[pos].high > chart.rawCandles[point.position].low * 0.95)
+                    {
+                        outputs[pos] += 1;
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < dataLen; i++)
+        {
+            pOut[i] = outputs[i];
+        }
+    }
+}
+
+//=============================================================================
+// 输出函数32号: 关键支撑
+//OOR:= ROUND((1 - O / H) * 10000) * 10000;
+//CCR:= ROUND((1 - C / H) * 10000);
+//OC:= OOR + CCR;
+//=============================================================================
+void Func32(int dataLen, float* pOut, float* pHigh, float* pLow, float* pOC)
+{
+    if (dataLen < 10) {
+        for (int i = 0; i < dataLen; i++) {
+            pOut[i] = 0;
+        }
+    }
+    else {
+        Chart chart;
+        for (int i = 0; i < dataLen; i++) {
+            float high = pHigh[i];
+            float low = pLow[i];
+            float open = high * (1 - round(pOC[i] / 10000.) / 10000.);
+            float close = high * (1 - (int(pOC[i]) % 10000) / 10000.);
+
+            chart.addCandle(high, low, open, close);
+        }
+        chart.mergeCandles();
+    	
+        Stroke stroke;
+        stroke.scanForStrokes(chart.chanCandles);
+
+        vector<float> outputs(dataLen, 0);
+        for (auto point : stroke.points)
+        {
+            if (point.bullish < 0) {
+                for (int pos = point.position + 1; pos < min(dataLen, point.position + 180); pos++)
+                {
+                    if (chart.rawCandles[pos].low < chart.rawCandles[point.position].low * 1.05
+                        && chart.rawCandles[pos].low > chart.rawCandles[point.position].low)
+                    {
+                        outputs[pos] += 1;
+                    }
+                }
+            }
+            else if (point.bullish > 0) {
+                for (int pos = point.position + 1; pos < min(dataLen, point.position + 180); pos++)
+                {
+                    if (chart.rawCandles[pos].low < chart.rawCandles[point.position].high * 1.05
+                        && chart.rawCandles[pos].low > chart.rawCandles[point.position].high)
+                    {
+                        outputs[pos] += 1;
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < dataLen; i++)
+        {
+            pOut[i] = outputs[i];
+        }
+    }
+}
 
 //加载的函数
 PluginTCalcFuncInfo g_CalcFuncSets[] =
@@ -1474,6 +1594,8 @@ PluginTCalcFuncInfo g_CalcFuncSets[] =
     {28,(pPluginFUNC)&Func28},
     {29,(pPluginFUNC)&Func29},
     {30,(pPluginFUNC)&Func30},
+    {31,(pPluginFUNC)&Func31},
+    {32,(pPluginFUNC)&Func32},
 	{0,NULL},
 };
 
